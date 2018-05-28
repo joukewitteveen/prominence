@@ -13,3 +13,9 @@ A one dimensional heightmap presented as whitespace separated pairs of
 
 **Output:**
 All peaks, sorted by prominence.
+
+
+This algorithm was conceived by *Rudolf Fleischer* in collaboration with
+*Jouke Witteveen*, *Michael Emmerich*, and *Günter Rote* at the
+*Fixed-Parameter Computational Geometry* workshop 2018, at the *Lorentz Center*
+in *Leiden*.
