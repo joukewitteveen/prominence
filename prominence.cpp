@@ -1,118 +1,109 @@
 #include <iostream>
 #include <set>
-#include <stack>
-#include "freader.hpp"
+#include "greader.hpp"
 
 using namespace std;
 
 
 struct Prominence {
     double prominence;
-    Feature peak;
+    Location location;
     bool operator< (Prominence const& other) const {
-        // Prominences should be sorted in descending order
-        return prominence > other.prominence;
+        // prominences should be sorted in descending order
+        return prominence > other.prominence ||
+               (prominence == other.prominence && location < other.location);
     }
 };
 
 
-class ProminenceReader {
-    FeatureReader& features;
-    stack<Prominence> partial; // Peaks with only a known left-sided prominence
-    const double sea_level;
-    bool reader_good;
-    bool reference_good;
-    Prominence reference; // Rightmost peak under investigation
-    bool update_reference(); // Advance to the next peak
-  public:
-    ProminenceReader(FeatureReader& features);
-    operator bool () const { return reader_good; }
-    ProminenceReader& operator>> (Prominence&);
-};
-
-
-bool ProminenceReader::update_reference() {
-    double valley_height;
-
-    partial.push(reference);
-
-    // Read a valley
-    if(!(features >> reference.peak)) return false;
-    valley_height = reference.peak.height;
-
-    // Read a peak
-    if(!(features >> reference.peak)) return false;
-    reference.prominence = reference.peak.height - valley_height;
-
-    return true;
+void usage() {
+    cout << "Usage: prominence [threshold] <file>" << endl << endl
+         << "threshold defaults to " << sea_level << "." << endl << endl
+         << "Supported file formats:" << endl
+         << "  DOT     (.gv, .dot)" << endl
+         << "  GraphML (.graphml, .xml)" << endl
+#ifndef NOGDAL
+         << "  DEM     (.dem, ...)" << endl
+#endif //NOGDAL
+         ;
 }
 
 
-ProminenceReader::ProminenceReader(FeatureReader& features) :
-  features(features), sea_level(0.0) {
-    // Read the first reference peak
-    if((features >> reference.peak) &&
-       (features.last_type() == Peak || // Ignore a leading valley
-        (features >> reference.peak))) {
-        reference.prominence = reference.peak.height - sea_level;
-        reference_good = true;
-        reader_good = true;
-    } else {
-        reference_good = false;
-        reader_good = false;
-    }
-}
+// Find the component representative and apply path halving
+Location find_root(Location location, Map& heightmap) {
+    for (Location* parent = &heightmap[location]._parent;
+         *parent != (location = heightmap[*parent]._parent);
+         parent = &heightmap[location]._parent)
+        *parent = location;
 
-
-ProminenceReader& ProminenceReader::operator>> (Prominence& p) {
-    // Peaks on the stack are descending in height
-    while(reference_good &&
-          (partial.empty() ||
-           partial.top().peak.height > reference.peak.height))
-        reference_good = update_reference();
-
-    // After reading all features, process the stack
-    if(!reference_good) {
-        if(!partial.empty()) {
-            p = partial.top();
-            partial.pop();
-        } else reader_good = false; // Done
-        return *this;
-    }
-
-    // We have a good reference peak, higher than the top of our stack
-    double valley_height = reference.peak.height - reference.prominence;
-    p = partial.top();
-    partial.pop();
-
-    if(p.prominence > p.peak.height - valley_height) {
-        reference.prominence = reference.peak.height -
-                               (p.peak.height - p.prominence);
-        p.prominence = p.peak.height - valley_height;
-    }
-
-    return *this;
+    return location;
 }
 
 
 int main(int argc, char* argv[]) {
-    FeatureReader features(cin);
-    ProminenceReader prominences(features);
+    double prominence, threshold = sea_level;
+    Map heightmap;
     set<Prominence> peaks;
-    Prominence p;
 
-    
-    /* In case we want only the k highest prominences and k < log(n),
-     * using a list instead of a set reduces the running time from O(log(n)*n)
-     * to O(k*n). */
-    while(prominences >> p)
-        peaks.insert(p);
-
-    for(Prominence p : peaks) {
-        cout << "Peak at " << p.peak.position
-             << " (height: " << p.peak.height
-             << ") has prominence " << p.prominence << endl;
+    switch (--argc) {
+      case 2:
+        threshold = stod(argv[1]);
+      case 1:
+        if (read_map(argv[argc], heightmap)) break;
+      default:
+        usage();
+        return 1;
     }
+
+    // Sort the locations in order of decreasing height
+    if (num_vertices(heightmap) == 0) return 0;
+    HeightOrder by_height(heightmap);
+    set<Location, HeightOrder> locations(by_height);
+    // Copy all locations (vertices) into the ordered set
+    locations.insert(vertices(heightmap).first, vertices(heightmap).second);
+
+    set<Location, HeightOrder> roots(by_height);
+    for (auto location : locations) {
+        if (heightmap[location].height - sea_level < threshold) break;
+        Location& parent = heightmap[location]._parent;
+
+        // Gather all components above and reachable from the current location
+        // Duplicates are removed by the set container
+        roots.clear();
+        for (auto adjacent : adjacent_range(location, heightmap)) {
+            if (by_height(adjacent, location)) // adjacent is higher
+                roots.insert(find_root(adjacent, heightmap));
+        }
+
+        if (roots.empty()) {
+            // A peak
+            parent = location;
+            continue;
+        }
+
+        parent = *roots.begin(); // The highest peak among the components
+        for (auto root = ++roots.begin(), root_end = roots.end(); // The rest
+             root != root_end; ++root) {
+            heightmap[*root]._parent = parent; // Necessary for all components
+
+            prominence = heightmap[*root].height - heightmap[location].height;
+            if (prominence >= threshold)
+                peaks.insert(Prominence { prominence, *root });
+        }
+    }
+
+    // Highest (isolated) peaks
+    for (auto location : locations) {
+        prominence = heightmap[location].height - sea_level;
+        if (prominence < threshold) break;
+        if (heightmap[location]._parent == location) // A remaining root
+            peaks.insert(Prominence { prominence, location });
+    }
+
+    for (auto p : peaks)
+        cout << "Peak " << heightmap[p.location].id
+             << " (height: " << heightmap[p.location].height
+             << ") has prominence " << p.prominence << endl;
 
     return 0;
 }

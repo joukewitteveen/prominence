@@ -14,6 +14,8 @@ struct Feature {
 };
 
 
+/* Turn a one dimensional heightmap on an input stream into a stream of peaks
+ * and valleys (features). */
 class FeatureReader {
     std::istream& heightmap;
     bool sustain;
