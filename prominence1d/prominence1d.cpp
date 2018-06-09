@@ -1,6 +1,7 @@
 #include <iostream>
 #include <set>
 #include <stack>
+#include <string>
 #include "freader.hpp"
 
 using namespace std;
@@ -25,15 +26,15 @@ class ProminenceReader {
     bool reader_good;
     bool reference_good;
     Prominence reference; // Rightmost peak under investigation
-    bool update_reference(); // Advance to the next peak
+    bool advance_reference(); // Advance to the next peak
   public:
-    ProminenceReader(FeatureReader&);
+    ProminenceReader(FeatureReader&, double);
     operator bool () const { return reader_good; }
     ProminenceReader& operator>> (Prominence&);
 };
 
 
-bool ProminenceReader::update_reference() {
+bool ProminenceReader::advance_reference() {
     double valley_height;
 
     partial.push(reference);
@@ -50,8 +51,8 @@ bool ProminenceReader::update_reference() {
 }
 
 
-ProminenceReader::ProminenceReader(FeatureReader& features) :
-  features(features), sea_level(0.0) {
+ProminenceReader::ProminenceReader(FeatureReader& features, double sea_level) :
+  features(features), sea_level(sea_level) {
     // Read the first reference peak
     if ((features >> reference.peak) &&
         (features.last_type() == Peak || // Ignore a leading valley
@@ -71,7 +72,7 @@ ProminenceReader& ProminenceReader::operator>> (Prominence& p) {
     while (reference_good &&
            (partial.empty() ||
             partial.top().peak.height > reference.peak.height))
-        reference_good = update_reference();
+        reference_good = advance_reference();
 
     // After reading all features, process the stack
     if (!reference_good) {
@@ -97,9 +98,28 @@ ProminenceReader& ProminenceReader::operator>> (Prominence& p) {
 }
 
 
+void usage() {
+    cout << "Usage: prominence1d [<sea_level>]" << endl << endl
+         << "An ordered heightmap is read from the input stream as pairs:"
+         << endl << "    <position>    <height>" << endl;
+}
+
+
 int main(int argc, char* argv[]) {
+    double sea_level = 0.0;
+
+    switch (--argc) {
+      case 1:
+        sea_level = stod(argv[1]);
+      case 0:
+        break;
+      default:
+        usage();
+        return 1;
+    }
+
     FeatureReader features(cin);
-    ProminenceReader prominences(features);
+    ProminenceReader prominences(features, sea_level);
     set<Prominence> peaks;
     Prominence p;
 

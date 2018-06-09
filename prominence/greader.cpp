@@ -12,7 +12,7 @@ using namespace boost;
 
 
 #ifndef NOGDAL
-bool from_gdal(GDALDataset* dataset, Map& map) {
+bool from_gdal(GDALDataset* dataset, HeightMap& map) {
     format id_format("(%g, %g)");
     CPLErr error = CE_None;
     GDALRasterBand* raster;
@@ -29,7 +29,7 @@ bool from_gdal(GDALDataset* dataset, Map& map) {
     scanline = static_cast<double*>(CPLMalloc(sizeof(double) * xsize));
     no_data = raster->GetNoDataValue();
 
-    map = Map(xsize * ysize);
+    map = HeightMap(xsize * ysize);
     for (int ypixel = 0; ypixel < ysize && error == CE_None; ++ypixel) {
         error = raster->RasterIO(GF_Read, 0, ypixel, xsize, 1,
                                  scanline, xsize, 1, GDT_Float64,
@@ -63,7 +63,7 @@ bool from_gdal(GDALDataset* dataset, Map& map) {
 #endif //NOGDAL
 
 
-bool read_map(const string uri, Map& map) {
+bool read_map(const string uri, HeightMap& map) {
     //TODO: This is a hack assuming string::npos == -1
     string const ext = uri.substr(uri.find_last_of('.') + 1);
     ifstream in(uri);

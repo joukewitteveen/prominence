@@ -20,6 +20,10 @@ A one dimensional heightmap presented as whitespace separated pairs of
 **Output:**
 All peaks, sorted by prominence.
 
+### Building
+
+Use `make` in the `prominence1d` directory.
+
 
 prominence
 ----------
@@ -33,18 +37,30 @@ into a grid graph.
 **Output:**
 All peaks, sorted by prominence.
 
+### Building
 
-Building
---------
+Use `make [all | prominence] [NOGDAL=1]` in the `prominence` directory.
 
-The programs can be built using
-```
-    make (all | prominence1d | prominence) [NOGDAL=1]
-```
 A C++11-compatible compiler and the `Boost` headers are required for building
-the programs. Without the final option, also the GDAL libraries are needed.
+the program. Without the final option, also the GDAL libraries are needed.
 
 
+minprominence
+-------------
+
+This program accepts the same input graphs as the `prominence` program. For a
+given number of peaks, it finds a selection of that many peaks with a minimum
+combined, or, equivalently, average, relative prominence.
+
+**Output:**
+A selection of peaks and their combined relative prominence.
+
+### Building
+
+Use `make [all | minprominence] [NOGDAL=1]` in the `prominence` directory.
+
+
+___
 This algorithm was conceived by *Rudolf Fleischer* in collaboration with
 *Jouke Witteveen*, *Michael Emmerich*, and *Günter Rote* at the
 *Fixed-Parameter Computational Geometry* workshop 2018, at the *Lorentz Center*

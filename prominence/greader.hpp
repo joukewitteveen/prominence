@@ -1,5 +1,10 @@
+#pragma once
+
 #include <string>
 #include <boost/graph/adjacency_list.hpp>
+
+using boost::num_vertices;
+using boost::vertices;
 
 
 constexpr double sea_level = 0.0;
@@ -13,21 +18,21 @@ typedef boost::adjacency_list<
     boost::vecS,
     boost::undirectedS,
     Feature>
-  Map;
-typedef Map::vertex_descriptor Location;
+  HeightMap;
+typedef HeightMap::vertex_descriptor Location;
 
 
 struct Feature {
     std::string id;
     double height = sea_level;
-    Location _parent;
+    Location parent;
 };
 
 
 class HeightOrder {
-    Map& map;
+    HeightMap& map;
   public:
-    HeightOrder(Map& map) : map(map) {}
+    HeightOrder(HeightMap& map) : map(map) {}
     bool operator()(Location const& a, Location const& b) const {
         auto a_height = map[a].height, b_height = map[b].height;
         return a_height > b_height || (a_height == b_height && a < b);
@@ -35,10 +40,10 @@ class HeightOrder {
 };
 
 
-inline boost::iterator_range<boost::graph_traits<Map>::adjacency_iterator>
-adjacent_range(Location l, Map const& m) {
-    return boost::make_iterator_range(adjacent_vertices(l, m));
+inline boost::iterator_range<boost::graph_traits<HeightMap>::adjacency_iterator>
+adjacent_range(Location l, HeightMap const& m) {
+    return boost::make_iterator_range(boost::adjacent_vertices(l, m));
 }
 
 
-bool read_map(std::string const, Map&);
+bool read_map(std::string const, HeightMap&);
