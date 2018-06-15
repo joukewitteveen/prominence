@@ -1,6 +1,7 @@
 #include <iostream>
+#include <iomanip>
 #include <set>
-#include "greader.hpp"
+#include "heightmap.hpp"
 #include "preader.hpp"
 
 using namespace std;
@@ -9,18 +10,14 @@ using namespace std;
 void usage() {
     cout << "Usage: prominence [threshold] <file>" << endl << endl
          << "threshold defaults to " << sea_level << "." << endl << endl
-         << "Supported file formats:" << endl
-         << "  DOT     (.gv, .dot)" << endl
-         << "  GraphML (.graphml, .xml)" << endl
-#ifndef NOGDAL
-         << "  DEM     (.dem, ...)" << endl
-#endif //NOGDAL
-         ;
+         << "Supported file formats:" << endl;
+    for (auto& format : supported_formats())
+        cout << "  " << setw(10) << left << format[0] << format[1] << endl;
 }
 
 
 int main(int argc, char* argv[]) {
-    double threshold = sea_level;
+    Height threshold = sea_level;
     HeightMap map;
 
     switch (--argc) {
@@ -41,7 +38,7 @@ int main(int argc, char* argv[]) {
         peaks.insert(p);
 
     for (auto p : peaks)
-        cout << "Peak " << map[p.location].id
+        cout << "Peak " << get_name(p.location, map)
              << " (height: " << map[p.location].height
              << ") has prominence " << p.prominence << endl;
 

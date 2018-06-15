@@ -29,20 +29,21 @@ prominence
 ----------
 
 This program operates on arbitrary graphs. Graphs can be supplied as either
-`GraphML` or `DOT` files, with heights specified in vertex attributes named
-`height`. Alternatively, a digital elevation model can be specified as a `DEM`
-file in a format understood by `GDAL`. Internally, the file will be converted
-into a grid graph.
+`GraphML` or `DOT` files (using the `boost` backend), with heights specified in
+vertex attributes named `height`. Alternatively, a digital elevation model can
+be specified as a `DEM` file in a format understood by `GDAL` (using the `gdal`
+backend).
 
 **Output:**
 All peaks, sorted by prominence.
 
 ### Building
 
-Use `make [all | prominence] [NOGDAL=1]` in the `prominence` directory.
+Use `make [all | prominence] [backend=(boost | gdal)]` in the `prominence`
+directory.
 
-A C++11-compatible compiler and the `Boost` headers are required for building
-the program. Without the final option, also the GDAL libraries are needed.
+A C++11-compatible compiler and either the `Boost` headers or the `GDAL`
+libraries are required for building the program. The default backend is `gdal`.
 
 
 minprominence
@@ -57,7 +58,8 @@ A selection of peaks and their combined relative prominence.
 
 ### Building
 
-Use `make [all | minprominence] [NOGDAL=1]` in the `prominence` directory.
+Use `make [all | minprominence] [backend=(boost | gdal)]` in the `prominence`
+directory.
 
 
 ___

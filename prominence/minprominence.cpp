@@ -1,25 +1,23 @@
 #include <iostream>
+#include <iomanip>
 #include <algorithm>
 #include <memory>
 #include <vector>
 #include <type_traits>
-#include "greader.hpp"
+#include "heightmap.hpp"
 #include "preader.hpp"
 
 using namespace std;
-
-
-typedef typename vector<double>::size_type Size;
 
 
 /* Minimum total relative prominence is computed using dynamic programming.
  * Optimal selections of peaks are computed inside contour lines. */
 class MinProminence {
     struct SubTree {
-        double key_height;
+        Height key_height;
         vector<vector<Location>> selections;
-        vector<double> totals;
-        SubTree(Location const l, double const h) :
+        vector<Height> totals;
+        SubTree(Location l, Height h) :
           key_height(h),
           selections(2, vector<Location>()),
           totals(2, 0.0) {
@@ -29,15 +27,15 @@ class MinProminence {
     typedef unique_ptr<SubTree> SubTree_;
     HeightMap const& map;
     vector<SubTree_> partials;
-    Size const target_size;
+    HeightMapSize const target_size;
     SubTree_& get(Location);
     void merge(SubTree_&, SubTree_&);
-    void update_key_height(SubTree_&, double);
+    void update_key_height(SubTree_&, Height);
   public:
-    MinProminence(HeightMap const& map, Size const size) :
-      map(map), partials(num_vertices(map)), target_size(size) {}
+    MinProminence(HeightMap const& map, HeightMapSize size) :
+      map(map), partials(num_locations(map)), target_size(size) {}
     MinProminence& operator<< (Prominence const&);
-    double yield(vector<Location>&); // Destructively determine best selection
+    Height yield(vector<Location>&); // Destructively determine best selection
 };
 
 
@@ -51,15 +49,15 @@ MinProminence::SubTree_& MinProminence::get(Location l) {
 
 
 void MinProminence::merge(SubTree_& target, SubTree_& source) {
-    Size const max_target = target->totals.size() - 1,
-               max_source = source->totals.size() - 1,
-               max_post = min(max_target + max_source, target_size);
-    vector<Size> splits(max_post + 1);
-    vector<double> best(max_post + 1, 0.0);
-    double candidate;
+    HeightMapSize const max_target = target->totals.size() - 1,
+                        max_source = source->totals.size() - 1,
+                        max_post = min(max_target + max_source, target_size);
+    vector<HeightMapSize> splits(max_post + 1);
+    vector<Height> best(max_post + 1, 0.0);
+    Height candidate;
 
     // Determine optimal combinations of selections
-    for (Size k = 1, split, min_split; k <= max_post; ++k) {
+    for (HeightMapSize k = 1, split, min_split; k <= max_post; ++k) {
         split = min(max_target, k);
         // We cannot use max() because the variables are unsigned
         min_split = k > max_source ? k - max_source : 0;
@@ -77,7 +75,7 @@ void MinProminence::merge(SubTree_& target, SubTree_& source) {
     // The merger must be carried out backwards
     target->selections.resize(max_post + 1);
     target->totals = best;
-    for (Size k = max_post; k >= 1; --k) {
+    for (HeightMapSize k = max_post; k >= 1; --k) {
         if (k == splits[k]) continue;
 
         auto& selection = target->selections[k];
@@ -91,23 +89,23 @@ void MinProminence::merge(SubTree_& target, SubTree_& source) {
 }
 
 
-void MinProminence::update_key_height(SubTree_& tree, double key_height) {
-    double const delta = tree->key_height - key_height;
+void MinProminence::update_key_height(SubTree_& tree, Height key_height) {
+    Height const delta = tree->key_height - key_height;
 
     // Do not increase the total prominence of the empty selection
     /* If we would also not increase the total prominence of a selection of
      * target_size locations, we would obtain a localized total prominence. */
     for_each (tree->totals.begin() + 1, tree->totals.end(),
-              [&](double& total) { total += delta; });
+              [&](Height& total) { total += delta; });
 
     tree->key_height = key_height;
 }
 
 
 MinProminence& MinProminence::operator<< (Prominence const& p) {
-    Location child = p.location,
-             parent = map[child].parent;
-    double key_height = map[child].height - p.prominence;
+    Location const child = p.location,
+                   parent = map[child].parent;
+    Height key_height = map[child].height - p.prominence;
     SubTree_& target = get(parent);
 
     update_key_height(target, key_height);
@@ -122,8 +120,8 @@ MinProminence& MinProminence::operator<< (Prominence const& p) {
 }
 
 
-double MinProminence::yield(vector<Location>& selection) {
-    double prominence = 0.0;
+Height MinProminence::yield(vector<Location>& selection) {
+    Height prominence = 0.0;
     auto nonempty = [](SubTree_ const& t) { return t.operator bool (); };
     auto end = partials.end();
     auto target = find_if(partials.begin(), end, nonempty);
@@ -144,19 +142,15 @@ double MinProminence::yield(vector<Location>& selection) {
 
 void usage() {
     cout << "Usage: minprominence <size> <file>" << endl << endl
-         << "Supported file formats:" << endl
-         << "  DOT     (.gv, .dot)" << endl
-         << "  GraphML (.graphml, .xml)" << endl
-#ifndef NOGDAL
-         << "  DEM     (.dem, ...)" << endl
-#endif //NOGDAL
-         ;
+         << "Supported file formats:" << endl;
+    for (auto& format : supported_formats())
+        cout << "  " << setw(10) << left << format[0] << format[1] << endl;
 }
 
 
 int main(int argc, char* argv[]) {
     HeightMap map;
-    Size size;
+    HeightMapSize size;
 
     switch (--argc) {
       case 2:
@@ -171,7 +165,7 @@ int main(int argc, char* argv[]) {
     MinProminence accumulator(map, size);
     Prominence p;
     vector<Location> selection;
-    double prominence;
+    Height prominence;
 
     while (prominences >> p)
         accumulator << p;
@@ -181,7 +175,7 @@ int main(int argc, char* argv[]) {
     cout << "A relative prominence of " << prominence
          << " is obtained with " << selection.size() << " peaks:" << endl;
     for (auto l : selection)
-        cout << "Peak " << map[l].id
+        cout << "Peak " << get_name(l, map)
              << " (height: " << map[l].height << ")" << endl;
 
     return 0;

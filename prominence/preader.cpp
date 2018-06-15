@@ -20,7 +20,7 @@ bool ProminenceReader::explore_location() {
     // Gather all components above and reachable from the current location
     // Duplicates are removed by the set container
     roots.clear();
-    for (auto adjacent : adjacent_range(*location, map)) {
+    for (auto adjacent : adjacent_locations(*location, map)) {
         if (by_height(adjacent, *location)) // adjacent is higher
             roots.insert(find_root(adjacent));
     }
@@ -40,8 +40,8 @@ bool ProminenceReader::read_prominence(Prominence& p) {
     do {
         if (root != roots_end) {
             p = Prominence {
-                    map[*root].height - map[*location].height,
-                    *root++
+                map[*root].height - map[*location].height,
+                *root++
             };
             if (p.prominence >= threshold) return true;
         }
@@ -64,14 +64,15 @@ bool ProminenceReader::read_highest(Prominence& p) {
 }
 
 
-ProminenceReader::ProminenceReader(HeightMap& map, double threshold) :
+ProminenceReader::ProminenceReader(HeightMap& map, Height threshold) :
   map(map),
   by_height(map),
   locations(by_height),
   roots(by_height),
   threshold(threshold) {
-    // Copy and sort all locations (vertices)
-    locations.insert(vertices(map).first, vertices(map).second);
+    // Copy and sort all locations
+    auto locations_iterator = ::locations(map);
+    locations.insert(locations_iterator.begin(), locations_iterator.end());
     location = locations.begin();
     locations_end = locations.end();
     stage = explore_location() ? Stage::prominence : Stage::done;
