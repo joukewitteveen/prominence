@@ -8,10 +8,16 @@ using namespace std;
 vector<Location> adjacent_locations(Location l, HeightMap const& m) {
     vector<Location> adjacent;
     adjacent.reserve(4);
-    if (l >= m.xsize) adjacent.push_back(l - m.xsize);
-    if (l % m.xsize != 0) adjacent.push_back(l - 1);
-    if ((l + 1) % m.xsize != 0) adjacent.push_back(l + 1);
-    if (l + m.xsize < num_locations(m)) adjacent.push_back(l + m.xsize);
+
+    if (l >= m.xsize)
+        adjacent.push_back(l - m.xsize); // North
+    if (l % m.xsize != 0)
+        adjacent.push_back(l - 1); // West
+    if ((l + 1) % m.xsize != 0)
+        adjacent.push_back(l + 1); // East
+    if (l + m.xsize < num_locations(m))
+        adjacent.push_back(l + m.xsize); // South
+
     return adjacent;
 }
 

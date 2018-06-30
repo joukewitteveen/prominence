@@ -1,6 +1,9 @@
 #include "preader.hpp"
 
 
+/* Each location points to a higher location in its connected component (if one
+ * exists). This function finds the highest location of a connected component.
+ * It applies path halving to accelerate future invocations. */
 Location ProminenceReader::find_root(Location location) {
     for (Location* parent = &map[location].parent;
          *parent != (location = map[*parent].parent);
@@ -11,6 +14,10 @@ Location ProminenceReader::find_root(Location location) {
 }
 
 
+/* The locations reachable from the current location are examined. If they are
+ * higher than the current location, then (a representative of) their connected
+ * component is added to a set of roots. The current location connects all
+ * components in the set of roots, hence the components are merged. */
 bool ProminenceReader::explore_location() {
     if (location == locations_end ||
         map[*location].height - sea_level < threshold) return false;
@@ -36,6 +43,9 @@ bool ProminenceReader::explore_location() {
 }
 
 
+/* The prominence of all but one (the highest) of the highest peaks of the root
+ * components is known when merging the components. When all roots have been
+ * examined, move to the next location and repeat. */
 bool ProminenceReader::read_prominence(Prominence& p) {
     do {
         if (root != roots_end) {
@@ -51,6 +61,9 @@ bool ProminenceReader::read_prominence(Prominence& p) {
 }
 
 
+/* After exploring all locations, we are left with a set of isolated (in the
+ * reachability graph underlying the heightmap) peaks. By definition, the
+ * prominence of each such peak is its height. */
 bool ProminenceReader::read_highest(Prominence& p) {
     while (location != locations_end) {
         p = Prominence {
@@ -64,6 +77,8 @@ bool ProminenceReader::read_highest(Prominence& p) {
 }
 
 
+/* Prepare an exploration of all locations on the map in order of decreasing
+ * height. */
 ProminenceReader::ProminenceReader(HeightMap& map, Height threshold) :
   map(map),
   by_height(map),
@@ -79,6 +94,7 @@ ProminenceReader::ProminenceReader(HeightMap& map, Height threshold) :
 }
 
 
+/* Obtain the next known prominence. */
 ProminenceReader& ProminenceReader::operator>> (Prominence& p) {
     if (stage == Stage::prominence && !read_prominence(p)) {
         location = locations.begin();
